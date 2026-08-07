@@ -4,6 +4,7 @@
 
 - Add a global **Sidebar on startup** setting that is saved to user configuration while preserving session-scoped Sidebar on/off controls.
 - Harden Atelier lifecycle teardown for session-owned overlays, exception-safe cleanup, stale Sidebar snapshots, candidate startup failures, and deferred Display saves.
+- Simplify Sidebar context rendering, contributed-panel validation, and Sidebar undo bookkeeping without changing behavior.
 
 ## 0.7.2 — 2026-08-06
 
