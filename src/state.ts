@@ -41,6 +41,16 @@ export interface RuntimeDependencies {
 	inspectWorkspace?(): Promise<WorkspacePulseInspection>;
 }
 
+export function createInertAtelierState(autoCompact: boolean | null = null): AtelierState {
+	return {
+		activity: "ready",
+		dirty: false,
+		workspacePulse: { status: "unavailable" },
+		metrics: aggregateMetrics([], { subscription: false, autoCompact }),
+		extensionStatuses: [],
+	};
+}
+
 export class AtelierRuntime {
 	readonly #pi: ExtensionAPI;
 	readonly #ctx: ExtensionContext;
@@ -70,19 +80,21 @@ export class AtelierRuntime {
 		this.#inspectWorkspace =
 			dependencies.inspectWorkspace ??
 			(() => inspectWorkspacePulse({ exec: this.#pi.exec.bind(this.#pi), cwd: this.#ctx.cwd }));
-		const context = this.#ctx.getContextUsage();
-		this.#state = {
-			activity: "ready",
-			dirty: false,
+		this.#state = this.#inertState(this.#ctx.getContextUsage());
+		this.refreshUsage();
+	}
+
+	/** State with no branch, workspace data, or usage history; context is included only when explicit. */
+	#inertState(context: ReturnType<ExtensionContext["getContextUsage"]> = undefined): AtelierState {
+		return {
+			...createInertAtelierState(this.#autoCompact),
 			workspacePulse: { status: "inspecting" },
 			metrics: aggregateMetrics([], {
 				subscription: false,
 				autoCompact: this.#autoCompact,
 				...(context ? { context } : {}),
 			}),
-			extensionStatuses: [],
 		};
-		this.refreshUsage();
 	}
 
 	getState(): AtelierState {
@@ -295,11 +307,17 @@ export class AtelierRuntime {
 		await this.refreshWorkspacePulse();
 	}
 
+	/**
+	 * Stops scheduled work and resets to inert state, so a footer that outlives its
+	 * `setFooter(undefined)` cannot keep reporting the retired session's branch, usage, or activity.
+	 */
 	dispose(): void {
 		this.#disposed = true;
 		this.#workspaceRefreshGeneration += 1;
 		if (this.#workspaceRefreshTimer) clearTimeout(this.#workspaceRefreshTimer);
 		this.#workspaceRefreshTimer = undefined;
+		this.#lastWorkspaceData = undefined;
+		this.#state = { ...this.#inertState(), workspacePulse: { status: "unavailable" } };
 	}
 
 	#replaceState(next: AtelierState): void {
