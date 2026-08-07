@@ -274,6 +274,11 @@ export function createSettingsWorkspace(options: SettingsWorkspaceOptions): Sett
 		tell(message);
 		request(true);
 	};
+	const recordSidebarUndo = (): void => {
+		sidebarUndo = sidebarDraft.map((entry) => ({ ...entry }));
+		hasSidebarUndo = true;
+		lastUndo = "sidebar";
+	};
 	const revert = (): void => {
 		undo = cloneOverride(options.getSessionDisplayOverride());
 		hasUndo = true;
@@ -362,9 +367,7 @@ export function createSettingsWorkspace(options: SettingsWorkspaceOptions): Sett
 		} else if (row.kind === "sidebarPanel") {
 			const entry = sidebarDraft.find((item) => item.id === row.id);
 			if (!entry) return;
-			sidebarUndo = sidebarDraft.map((item) => ({ ...item }));
-			hasSidebarUndo = true;
-			lastUndo = "sidebar";
+			recordSidebarUndo();
 			entry.visible = !entry.visible;
 			sidebarDirty = true;
 			tell(`${row.id} ${entry.visible ? "shown" : "hidden"}`);
@@ -372,9 +375,7 @@ export function createSettingsWorkspace(options: SettingsWorkspaceOptions): Sett
 		} else if (row.id === "save") void save();
 		else if (row.id === "revert") revert();
 		else if (row.id === "sidebar-default") {
-			sidebarUndo = sidebarDraft.map((item) => ({ ...item }));
-			hasSidebarUndo = true;
-			lastUndo = "sidebar";
+			recordSidebarUndo();
 			sidebarDraft = DEFAULT_SIDEBAR_PANEL_LAYOUT.map((entry) => ({ ...entry }));
 			sidebarDirty = true;
 			tell("Restored product Sidebar default");
@@ -396,9 +397,7 @@ export function createSettingsWorkspace(options: SettingsWorkspaceOptions): Sett
 				request();
 				return;
 			}
-			sidebarUndo = sidebarDraft.map((entry) => ({ ...entry }));
-			hasSidebarUndo = true;
-			lastUndo = "sidebar";
+			recordSidebarUndo();
 			const moved = sidebarDraft.splice(index, 1)[0];
 			if (moved) sidebarDraft.splice(target, 0, moved);
 			sidebarDirty = true;

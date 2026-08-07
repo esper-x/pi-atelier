@@ -446,7 +446,7 @@ export function createSidebarPanelRegistry(options: SidebarPanelRegistryOptions 
 	const register = (panel: SidebarPanelContribution, source?: string): boolean => {
 		if (disposed) return false;
 		const safe = sanitizeContribution(panel);
-		if (!safe || !isSidebarPanelContributionId(safe.id)) return false;
+		if (!safe) return false;
 		const resolvedSource = source ?? sourceFor(safe.id);
 		if (!isSidebarPanelSource(resolvedSource) || !canRegister(safe, resolvedSource)) return false;
 		return applyRegister(safe, resolvedSource);

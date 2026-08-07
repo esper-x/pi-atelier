@@ -437,9 +437,6 @@ function contextRows(
 		"dim",
 		"·".repeat(Math.max(0, meterWidth - filled)),
 	)}${palette.paint("dim", "]")}`;
-	if (layout.compact) {
-		return [spacedRow(palette.paint(role, usage), palette.paint(role, percent), contentWidth), meter];
-	}
 	return [spacedRow(palette.paint(role, usage), palette.paint(role, percent), contentWidth), meter];
 }
 
