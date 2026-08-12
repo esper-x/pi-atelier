@@ -25,7 +25,7 @@ const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url),
 describe("npm package contract", () => {
 	it("publishes a Pi extension with compatible peers", () => {
 		expect(pkg.name).toBe("pi-atelier");
-		expect(pkg.version).toBe("0.8.0");
+		expect(pkg.version).toBe("0.8.1");
 		expect(pkg.description).toBe("A responsive status rail and live activity sidebar for Pi");
 		expect(pkg.keywords).toContain("pi-package");
 		expect(pkg.pi.extensions).toEqual(["./extensions/index.ts"]);
@@ -35,24 +35,11 @@ describe("npm package contract", () => {
 		expect(pkg.files).toEqual(expect.arrayContaining(["extensions", "src", "README.md", "LICENSE"]));
 	});
 
-	it("documents the split sidebar Resize interaction and safe fallback", async () => {
+	it("documents Sidebar use and Resize", async () => {
 		const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
+		expect(readme).toContain("/atelier sidebar");
 		expect(readme).toContain("Ctrl+Shift+R");
-		expect(readme).toContain("28");
-		expect(readme).toContain("72");
-		expect(readme).toContain("non-capturing overlay");
-		expect(readme).toContain("bounded compatibility adapter");
-		expect(readme).toContain("Fullscreen wraps Pi's existing layout root in an `HStack`");
-		expect(readme).toContain("Unsupported renderers safely fall back");
-	});
-
-	it("publishes the Sidebar layout and contribution contract", async () => {
-		const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
-		expect(readme).toContain("sidebarPanelLayout");
-		expect(readme).toContain("pi-atelier:sidebar-panels");
-		expect(readme).toContain("namespaced");
-		expect(readme).toContain("No available panels");
-		expect(readme).toContain("when the Sidebar draft is dirty");
+		expect(readme).toContain("hides when the terminal is too narrow");
 	});
 
 	it("exports the deliberate structured contribution contract from the package entrypoint", () => {
@@ -98,11 +85,9 @@ describe("npm package contract", () => {
 		expect(SIDEBAR_PANEL_MAX_RAW_REQUEST_ID_CODE_UNITS).toBeGreaterThan(0);
 	});
 
-	it("publishes the direct Display workspace and keyboard contract", async () => {
+	it("documents Display settings", async () => {
 		const readme = await readFile(new URL("../README.md", import.meta.url), "utf8");
 		expect(readme).toContain("/atelier display");
-		expect(readme).toContain("Shift+Up/Shift+Down");
-		expect(readme).toContain("Undo");
-		expect(readme).toContain("Revert");
+		expect(readme).toContain("Settings → Display");
 	});
 });

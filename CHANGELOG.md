@@ -2,7 +2,10 @@
 
 ## Unreleased
 
+## 0.8.1 — 2026-08-12
+
 - Preserve fullscreen transcript mouse-wheel scrolling after Sidebar resize and visibility changes by leaving Pi's persistent mouse reporting enabled.
+- Simplify the README.
 
 ## 0.8.0 — 2026-08-07
 
