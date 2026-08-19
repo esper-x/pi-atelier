@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.8.2 — 2026-08-19
+
+- Coalesce and serialize Workspace Pulse inspection requests so short Turns avoid duplicate Git work and overlapping inspections no longer run concurrently.
+- Preserve live tool-driven Workspace Pulse updates while guaranteeing a fresh inspection at Turn end and preventing retired sessions from publishing stale results.
+
 ## 0.8.1 — 2026-08-12
 
 - Preserve fullscreen transcript mouse-wheel scrolling after Sidebar resize and visibility changes by leaving Pi's persistent mouse reporting enabled.
