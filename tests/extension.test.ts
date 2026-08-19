@@ -1868,15 +1868,39 @@ describe("extension registration", () => {
 		}
 	});
 
-	it("refreshes Workspace Pulse when a new Turn starts", async () => {
-		const h = harness();
-		await start(h);
-		await vi.waitFor(() => expect(h.pi.exec.mock.calls.length).toBeGreaterThan(0));
-		const inspectionsAfterStart = h.pi.exec.mock.calls.length;
+	it("coalesces a Turn-start Workspace Pulse refresh for 250ms", async () => {
+		vi.useFakeTimers();
+		try {
+			const h = harness();
+			await start(h);
+			const inspectionsAfterStart = h.pi.exec.mock.calls.length;
 
-		await h.handlers.get("turn_start")?.({ type: "turn_start", turnIndex: 0 }, h.ctx);
+			await h.handlers.get("turn_start")?.({ type: "turn_start", turnIndex: 0 }, h.ctx);
+			await vi.advanceTimersByTimeAsync(249);
+			expect(h.pi.exec).toHaveBeenCalledTimes(inspectionsAfterStart);
+			await vi.advanceTimersByTimeAsync(1);
+			expect(h.pi.exec).toHaveBeenCalledTimes(inspectionsAfterStart + 1);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
 
-		await vi.waitFor(() => expect(h.pi.exec).toHaveBeenCalledTimes(inspectionsAfterStart + 1));
+	it("flushes a fresh Workspace Pulse at Turn end without leaving a scheduled duplicate", async () => {
+		vi.useFakeTimers();
+		try {
+			const h = harness();
+			await start(h);
+			const inspectionsAfterStart = h.pi.exec.mock.calls.length;
+
+			await h.handlers.get("turn_start")?.({ type: "turn_start", turnIndex: 0 }, h.ctx);
+			await h.handlers.get("turn_end")?.({ type: "turn_end" }, h.ctx);
+			expect(h.pi.exec).toHaveBeenCalledTimes(inspectionsAfterStart + 1);
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			expect(h.pi.exec).toHaveBeenCalledTimes(inspectionsAfterStart + 1);
+		} finally {
+			vi.useRealTimers();
+		}
 	});
 
 	it("coalesces rapid tool completions into one Workspace Pulse refresh", async () => {

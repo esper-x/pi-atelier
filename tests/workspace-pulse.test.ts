@@ -1,14 +1,129 @@
 import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it, vi } from "vitest";
-import { inspectWorkspacePulse } from "../src/workspace-pulse.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+	createWorkspacePulseRefresh,
+	inspectWorkspacePulse,
+	type WorkspacePulseInspection,
+} from "../src/workspace-pulse.js";
+
+function deferred<T>() {
+	let resolve!: (value: T) => void;
+	const promise = new Promise<T>((done) => {
+		resolve = done;
+	});
+	return { promise, resolve };
+}
+
+afterEach(() => {
+	vi.useRealTimers();
+});
 
 const result = (stdout = "", code = 0, stderr = "") => ({
 	stdout,
 	stderr,
 	code,
 	killed: false,
+});
+
+describe("createWorkspacePulseRefresh", () => {
+	const clean: WorkspacePulseInspection = {
+		kind: "available",
+		root: "/repo",
+		relativeCwd: "",
+		branch: "main",
+		snapshot: {
+			trackedFiles: 0,
+			untrackedFiles: 0,
+			linesAdded: 0,
+			linesRemoved: 0,
+			binaryFiles: 0,
+			submodules: 0,
+			conflicts: 0,
+		},
+	};
+
+	it("coalesces scheduled requests into one inspection", async () => {
+		vi.useFakeTimers();
+		const inspect = vi.fn().mockResolvedValue(clean);
+		const publish = vi.fn();
+		const refresh = createWorkspacePulseRefresh({ inspect, publish, delayMs: 250 });
+
+		refresh.request();
+		refresh.request();
+		refresh.request();
+		await vi.advanceTimersByTimeAsync(249);
+		expect(inspect).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+
+		expect(inspect).toHaveBeenCalledOnce();
+		expect(publish).toHaveBeenCalledWith(clean);
+	});
+
+	it("runs no concurrent inspections and retains one trailing request", async () => {
+		vi.useFakeTimers();
+		const first = deferred<WorkspacePulseInspection>();
+		const second = deferred<WorkspacePulseInspection>();
+		const inspect = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+		const publish = vi.fn();
+		const refresh = createWorkspacePulseRefresh({ inspect, publish, delayMs: 250 });
+
+		refresh.request();
+		await vi.advanceTimersByTimeAsync(250);
+		expect(inspect).toHaveBeenCalledOnce();
+
+		refresh.request();
+		await vi.advanceTimersByTimeAsync(250);
+		expect(inspect).toHaveBeenCalledOnce();
+
+		first.resolve(clean);
+		await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(2));
+		second.resolve(clean);
+		await vi.waitFor(() => expect(publish).toHaveBeenCalledTimes(2));
+	});
+
+	it("flushes through a running inspection to guarantee a fresh result", async () => {
+		vi.useFakeTimers();
+		const first = deferred<WorkspacePulseInspection>();
+		const second = deferred<WorkspacePulseInspection>();
+		const changed: WorkspacePulseInspection = {
+			...clean,
+			branch: "feature/pulse",
+			snapshot: { ...clean.snapshot, trackedFiles: 1 },
+		};
+		const inspect = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+		const publish = vi.fn();
+		const refresh = createWorkspacePulseRefresh({ inspect, publish, delayMs: 250 });
+
+		refresh.request();
+		await vi.advanceTimersByTimeAsync(250);
+		const flushed = refresh.flush();
+		first.resolve(clean);
+		await vi.waitFor(() => expect(inspect).toHaveBeenCalledTimes(2));
+		second.resolve(changed);
+		await flushed;
+
+		expect(publish).toHaveBeenLastCalledWith(changed);
+	});
+
+	it("cancels scheduled work and ignores in-flight results after disposal", async () => {
+		vi.useFakeTimers();
+		const running = deferred<WorkspacePulseInspection>();
+		const inspect = vi.fn().mockReturnValue(running.promise);
+		const publish = vi.fn();
+		const refresh = createWorkspacePulseRefresh({ inspect, publish, delayMs: 250 });
+
+		refresh.request();
+		await vi.advanceTimersByTimeAsync(250);
+		refresh.request();
+		refresh.dispose();
+		running.resolve(clean);
+		await vi.runAllTimersAsync();
+
+		expect(inspect).toHaveBeenCalledOnce();
+		expect(publish).not.toHaveBeenCalled();
+	});
 });
 
 describe("inspectWorkspacePulse", () => {

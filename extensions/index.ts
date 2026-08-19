@@ -547,7 +547,7 @@ export default function atelierExtension(
 					footerData.onBranchChange(() => {
 						const currentSession = getCurrentSession();
 						if (!currentSession) return;
-						void currentSession.runtime.refreshGitState();
+						void currentSession.runtime.flushWorkspacePulseRefresh();
 						callback();
 					}),
 				theme: theme as unknown as ThemeLike,
@@ -823,7 +823,7 @@ export default function atelierExtension(
 				installFooter(nextSession);
 				if (loaded.config.showSidebarOnStartup) nextSession.sidebar.show();
 			}
-			void candidateRuntime.refreshWorkspacePulse();
+			void candidateRuntime.flushWorkspacePulseRefresh();
 		} catch (error) {
 			const cleanup = (action: () => void): void => {
 				try {
@@ -884,7 +884,7 @@ export default function atelierExtension(
 		if (!current) return;
 		current.runActivity.startTurn(event.turnIndex);
 		current.completionNotifier.runStarted();
-		void current.runtime.refreshWorkspacePulse();
+		current.runtime.scheduleWorkspacePulseRefresh();
 	});
 	pi.on("before_provider_request", (_event, ctx) => {
 		getActiveSession(ctx)?.runActivity.startResponse();
@@ -956,7 +956,7 @@ export default function atelierExtension(
 		const current = getActiveSession(ctx);
 		if (!current) return;
 		current.runtime.refreshUsage();
-		await current.runtime.refreshGitState();
+		await current.runtime.flushWorkspacePulseRefresh();
 	});
 	pi.on("model_select", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());
 	pi.on("thinking_level_select", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());
