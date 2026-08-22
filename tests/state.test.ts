@@ -41,6 +41,7 @@ function createRuntime(
 		model: { id: "model", provider: "provider", reasoning: true },
 		modelRegistry: { isUsingOAuth: vi.fn().mockReturnValue(true) },
 		getContextUsage: vi.fn().mockReturnValue({ tokens: 1_000, contextWindow: 10_000, percent: 10 }),
+		isProjectTrusted: vi.fn().mockReturnValue(true),
 		sessionManager: { getEntries: vi.fn().mockReturnValue([assistant]) },
 	};
 	const runtime = new AtelierRuntime({
@@ -189,6 +190,7 @@ describe("AtelierRuntime", () => {
 			ctx: {
 				modelRegistry: { isUsingOAuth: vi.fn() },
 				getContextUsage: vi.fn(),
+				isProjectTrusted: vi.fn().mockReturnValue(true),
 				sessionManager: { getEntries: vi.fn().mockReturnValue([]) },
 			} as never,
 			config: DEFAULT_CONFIG,
@@ -238,6 +240,7 @@ describe("AtelierRuntime", () => {
 			ctx: {
 				modelRegistry: { isUsingOAuth: vi.fn() },
 				getContextUsage: vi.fn(),
+				isProjectTrusted: vi.fn().mockReturnValue(true),
 				sessionManager: { getEntries: vi.fn().mockReturnValue([]) },
 			} as never,
 			config: DEFAULT_CONFIG,

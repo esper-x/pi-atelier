@@ -107,7 +107,7 @@ Pi Atelier:
 
 - Does not collect telemetry or analytics
 - Does not store prompts, responses, credentials, or session content
-- Uses read-only Git inspection for workspace status
+- Uses read-only Git inspection for workspace status only after the project is trusted
 - Does not read untracked file contents
 - Reads project configuration only for trusted projects
 - Does not include prompts or responses in notifications

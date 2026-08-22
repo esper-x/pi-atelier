@@ -75,14 +75,26 @@ export class AtelierRuntime {
 		this.#autoCompact = dependencies.autoCompact;
 		this.#random = dependencies.random ?? Math.random;
 		this.#requestRender = dependencies.requestRender;
-		const inspectWorkspace =
-			dependencies.inspectWorkspace ??
-			(() => inspectWorkspacePulse({ exec: this.#pi.exec.bind(this.#pi), cwd: this.#ctx.cwd }));
+		const inspectWorkspace = async (): Promise<WorkspacePulseInspection> => {
+			if (!this.#canInspectWorkspace()) return { kind: "unavailable" };
+			return dependencies.inspectWorkspace
+				? dependencies.inspectWorkspace()
+				: inspectWorkspacePulse({
+						exec: async (command, args, options) =>
+							this.#canInspectWorkspace()
+								? this.#pi.exec(command, args, options)
+								: { stdout: "", stderr: "", code: 1, killed: true },
+						cwd: this.#ctx.cwd,
+					});
+		};
 		this.#workspacePulseRefresh = createWorkspacePulseRefresh({
 			inspect: inspectWorkspace,
 			publish: (inspection) => this.#applyWorkspacePulseInspection(inspection),
 		});
 		this.#state = this.#inertState(this.#ctx.getContextUsage());
+		if (!this.#ctx.isProjectTrusted()) {
+			this.#state = { ...this.#state, workspacePulse: { status: "unavailable" } };
+		}
 		this.refreshUsage();
 	}
 
@@ -242,12 +254,16 @@ export class AtelierRuntime {
 		this.#invalidate();
 	}
 
+	#canInspectWorkspace(): boolean {
+		return !this.#disposed && this.#ctx.isProjectTrusted();
+	}
+
 	scheduleWorkspacePulseRefresh(): void {
-		if (!this.#disposed) this.#workspacePulseRefresh.request();
+		if (this.#canInspectWorkspace()) this.#workspacePulseRefresh.request();
 	}
 
 	async flushWorkspacePulseRefresh(): Promise<void> {
-		if (!this.#disposed) await this.#workspacePulseRefresh.flush();
+		if (this.#canInspectWorkspace()) await this.#workspacePulseRefresh.flush();
 	}
 
 	#applyWorkspacePulseInspection(inspection: WorkspacePulseInspection): void {

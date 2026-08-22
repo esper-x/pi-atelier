@@ -261,6 +261,7 @@ function queueWorkspacePulseInspection(
 	h: ReturnType<typeof harness>,
 	firstResult: Promise<ReturnType<typeof execResult>> = Promise.resolve(execResult("true\n/tmp/project\n")),
 ): void {
+	h.ctx.isProjectTrusted.mockReturnValue(true);
 	const results = [
 		firstResult,
 		Promise.resolve(
@@ -1142,10 +1143,57 @@ describe("extension registration", () => {
 		expect(h.notificationProcess.kill).toHaveBeenCalled();
 	});
 
+	it("waits to inspect Workspace Pulse until the project is trusted", async () => {
+		vi.useFakeTimers();
+		try {
+			const h = harness();
+			expect(h.ctx.isProjectTrusted()).toBe(false);
+
+			await start(h);
+			await h.handlers.get("turn_start")?.({ type: "turn_start", turnIndex: 0 }, h.ctx);
+			await h.handlers.get("tool_execution_end")?.(
+				{
+					type: "tool_execution_end",
+					toolCallId: "untrusted-pulse-tool",
+					toolName: "write",
+					result: { output: "" },
+				},
+				h.ctx,
+			);
+			await h.handlers.get("turn_end")?.({ type: "turn_end" }, h.ctx);
+			await vi.advanceTimersByTimeAsync(1_000);
+
+			expect(h.pi.exec).not.toHaveBeenCalled();
+
+			h.ctx.isProjectTrusted.mockReturnValue(true);
+			await h.handlers.get("turn_end")?.({ type: "turn_end" }, h.ctx);
+
+			expect(h.pi.exec).toHaveBeenCalledOnce();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("stops an in-flight Workspace Pulse inspection when project trust is revoked", async () => {
+		const discovery = deferred<ReturnType<typeof execResult>>();
+		const h = harness();
+		queueWorkspacePulseInspection(h, discovery.promise);
+		await start(h);
+		await vi.waitFor(() => expect(h.pi.exec).toHaveBeenCalledOnce());
+
+		h.ctx.isProjectTrusted.mockReturnValue(false);
+		discovery.resolve(execResult("true\n/tmp/project\n"));
+		await Promise.resolve();
+		await Promise.resolve();
+
+		expect(h.pi.exec).toHaveBeenCalledOnce();
+	});
+
 	it("stops a scheduled workspace pulse refresh after shutdown", async () => {
 		vi.useFakeTimers();
 		try {
 			const h = harness();
+			h.ctx.isProjectTrusted.mockReturnValue(true);
 			await start(h);
 			const timersBeforeSchedule = vi.getTimerCount();
 			await h.handlers.get("tool_execution_end")?.(
@@ -1190,8 +1238,10 @@ describe("extension registration", () => {
 		await h.handlers.get("session_shutdown")?.({ reason: "quit" }, h.ctx);
 		h.overlays[0]?.requestRender.mockClear();
 		discovery.resolve(execResult("true\n/tmp/project\n"));
-		await waitForWorkspacePulseInspection(h);
+		await Promise.resolve();
+		await Promise.resolve();
 
+		expect(h.pi.exec).toHaveBeenCalledOnce();
 		expect(h.overlays[0]?.requestRender).not.toHaveBeenCalled();
 	});
 
@@ -1872,6 +1922,7 @@ describe("extension registration", () => {
 		vi.useFakeTimers();
 		try {
 			const h = harness();
+			h.ctx.isProjectTrusted.mockReturnValue(true);
 			await start(h);
 			const inspectionsAfterStart = h.pi.exec.mock.calls.length;
 
@@ -1889,6 +1940,7 @@ describe("extension registration", () => {
 		vi.useFakeTimers();
 		try {
 			const h = harness();
+			h.ctx.isProjectTrusted.mockReturnValue(true);
 			await start(h);
 			const inspectionsAfterStart = h.pi.exec.mock.calls.length;
 
@@ -1907,6 +1959,7 @@ describe("extension registration", () => {
 		vi.useFakeTimers();
 		try {
 			const h = harness();
+			h.ctx.isProjectTrusted.mockReturnValue(true);
 			await start(h);
 			const inspectionsAfterStart = h.pi.exec.mock.calls.length;
 

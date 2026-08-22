@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Wait to run Workspace Pulse Git inspections until Pi considers the project trusted.
+
 ## 0.8.2 — 2026-08-19
 
 - Coalesce and serialize Workspace Pulse inspection requests so short Turns avoid duplicate Git work and overlapping inspections no longer run concurrently.
