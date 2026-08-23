@@ -29,7 +29,7 @@ describe("npm package contract", () => {
 		expect(pkg.description).toBe("A responsive status rail and live activity sidebar for Pi");
 		expect(pkg.keywords).toContain("pi-package");
 		expect(pkg.pi.extensions).toEqual(["./extensions/index.ts"]);
-		expect(pkg.peerDependencies["@earendil-works/pi-coding-agent"]).toBe(">=0.80.7");
+		expect(pkg.peerDependencies["@earendil-works/pi-coding-agent"]).toBe(">=0.81.0");
 		expect(pkg.peerDependencies["@earendil-works/pi-tui"]).toBe(">=0.80.7");
 		expect(pkg.engines.node).toBe(">=22.19.0");
 		expect(pkg.files).toEqual(expect.arrayContaining(["extensions", "src", "README.md", "LICENSE"]));

@@ -1,4 +1,5 @@
 import { type Component, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import { formatCodexWindowLabel } from "./codex-usage.js";
 import { formatTokens } from "./metrics.js";
 import { type AtelierPalette, createPalette, type PaletteRole } from "./palette.js";
 import { responsePerformanceValues } from "./run-activity.js";
@@ -20,6 +21,7 @@ type FooterZone = "left" | "right";
 type FooterItemId =
 	| "brand"
 	| "status"
+	| "codex"
 	| "activity"
 	| "model"
 	| "thinking"
@@ -44,6 +46,7 @@ interface FooterItem {
 const DROP = {
 	brand: 0,
 	status: 0,
+	codex: 0,
 	git: 10,
 	thinking: 10,
 	cost: 20,
@@ -105,6 +108,16 @@ function contextRole(metrics: AtelierMetrics, config: AtelierConfig): PaletteRol
 	if (metrics.contextPercent >= config.contextDanger) return "error";
 	if (metrics.contextPercent >= config.contextWarning) return "warning";
 	return "context";
+}
+
+function codexUsageText(state: AtelierState, palette: AtelierPalette): string {
+	if (state.codexUsage?.status !== "ready") return "";
+	const windows = state.codexUsage.windows.map((window) => {
+		const remaining = Math.round(window.remainingPercent);
+		const role: PaletteRole = remaining <= 10 ? "error" : remaining <= 30 ? "warning" : "output";
+		return `${palette.paint(role, `${remaining}%`)} ${palette.paint("muted", formatCodexWindowLabel(window, true))}`;
+	});
+	return windows.length > 0 ? `${palette.paint("muted", "codex")} ${windows.join(" ")}` : "";
 }
 
 function activityText(
@@ -235,6 +248,17 @@ function buildItems(
 		}
 
 		if (segment === "metrics") {
+			const codex = codexUsageText(state, palette);
+			if (codex) {
+				add({
+					id: "codex",
+					zone: "left",
+					full: codex,
+					compact: codex,
+					dropRank: DROP.codex,
+					required: false,
+				});
+			}
 			const metrics = state.metrics;
 			const inputFull = metric("in", availableValue(metrics.usageAvailable, metrics.input), palette, "input");
 			const outputFull = metric(

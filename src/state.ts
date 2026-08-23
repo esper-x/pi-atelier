@@ -9,6 +9,7 @@ import type {
 	AtelierState,
 	DisplayLayerState,
 	DisplayPatch,
+	CodexUsageState,
 	DisplayProvenance,
 	DisplaySettings,
 	SessionDisplayOverride,
@@ -227,6 +228,11 @@ export class AtelierRuntime {
 				? { ...this.#state, activity, workingLabel: selectWorkingPhrase(this.#random()) }
 				: { ...this.#state, activity };
 		this.#invalidate();
+	}
+
+	setCodexUsage(codexUsage: CodexUsageState): void {
+		if (codexUsage.status === "hidden" && this.#state.codexUsage === undefined) return;
+		this.#replaceState({ ...this.#state, codexUsage });
 	}
 
 	refreshUsage(): void {

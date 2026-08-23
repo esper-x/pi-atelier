@@ -10,15 +10,16 @@ A responsive status rail and activity sidebar for [Pi](https://pi.dev).
 
 - Responsive one-line status rail
 - Live agent, tool, context, workspace, usage, TODO, and `pi-subagents` fleet information
+- Remaining OpenAI Codex subscription windows for the active OAuth model
 - Model, thinking-level, and tool controls
 - Configurable display presets, segments, and sidebar panels
 - Session details, rename, and compaction actions
 - Completion notifications on macOS and Windows
-- No telemetry or external network requests
+- No telemetry; Codex limit checks contact only the official ChatGPT usage endpoint
 
 ## Requirements
 
-- Pi 0.80.7 or newer
+- Pi 0.81.0 or newer
 - Node.js 22.19.0 or newer
 - Interactive TUI mode
 
@@ -109,6 +110,7 @@ Pi Atelier:
 
 - Does not collect telemetry or analytics
 - Does not store prompts, responses, credentials, or session content
+- While an official OpenAI Codex OAuth model is active, sends its resolved authorization only to `https://chatgpt.com/backend-api/wham/usage` every five minutes to refresh returned subscription windows
 - Uses read-only Git inspection for workspace status only after the project is trusted
 - Does not read untracked file contents
 - Reads project configuration only for trusted projects
@@ -119,6 +121,7 @@ Pi Atelier:
 - Shortcut unavailable: use `/atelier`, change `shortcut`, then run `/reload`.
 - Status rail missing: use TUI mode and check for another custom footer.
 - Metric mismatch: token and cost totals cover the session; context usage covers the current model context.
+- Codex limits unavailable: confirm the active model uses the official `openai-codex` OAuth subscription rather than an API key or proxy.
 
 ## Development
 

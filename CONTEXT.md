@@ -24,6 +24,10 @@ _Avoid_: First visible text latency, first-token speed
 The final output-token count divided by elapsed generation time from the first generated token until the provider response ends.
 _Avoid_: Request throughput, characters per second
 
+**Codex Plan Limits**:
+The latest subscription-window snapshot returned by the official ChatGPT usage endpoint for Pi's active official OpenAI Codex OAuth model. Each returned window is presented independently as remaining percentage and optional reset time; absent windows are absent from the display and are never inferred from primary/secondary position. The snapshot is session-scoped, refreshed every five minutes, hidden for other providers, API keys, proxies, and offline mode, and never persists credentials or provider payloads.
+_Avoid_: Codex balance, five-hour limit
+
 **Subagent Fleet**:
 The current-session set of active child agents reported by `pi-subagents` through its versioned public Fleet status interface. Pi Atelier presents operational display fields only: active count, custom agent/role, model effort, elapsed time, token usage, overflow, and top-level async capacity. It does not infer child state from transcript text or import package internals. The panel is absent when the integration is unavailable or the Fleet is idle.
 _Avoid_: Subagent process list, scraped subagent output

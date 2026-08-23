@@ -102,6 +102,19 @@ export interface DisplayValue {
 	available: boolean;
 }
 
+export interface CodexLimitWindow {
+	position: "primary" | "secondary";
+	remainingPercent: number;
+	windowMinutes?: number;
+	resetsAt?: number;
+}
+
+export type CodexUsageState =
+	| { status: "hidden" }
+	| { status: "loading" }
+	| { status: "unavailable" }
+	| { status: "ready"; windows: readonly CodexLimitWindow[] };
+
 export interface AtelierConfig extends DisplaySettings {
 	shortcut: string;
 	contextWarning: number;
@@ -147,6 +160,7 @@ export interface AtelierState {
 	dirty: boolean;
 	workspacePulse: WorkspacePulseState;
 	metrics: AtelierMetrics;
+	codexUsage?: CodexUsageState;
 	extensionStatuses: readonly string[];
 }
 

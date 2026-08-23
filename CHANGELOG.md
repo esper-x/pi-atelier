@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Show only the subscription-limit windows returned for the active official OpenAI Codex OAuth model in the Status Rail and **USAGE** sidebar panel, refreshed every five minutes.
 - Add an automatic **SUBAGENTS** sidebar panel for active `pi-subagents` work, showing custom agent roles, model effort, elapsed time, token usage, and async capacity through the versioned public RPC seam.
 - Wait to run Workspace Pulse Git inspections until Pi considers the project trusted.
 

@@ -3,6 +3,7 @@ import { basename } from "node:path";
 import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
 import { type Component, type OverlayHandle, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
 import type { ThemeLike } from "./footer.js";
+import { formatCodexResetTime, formatCodexWindowLabel } from "./codex-usage.js";
 import { aggregateMetrics, formatTokens } from "./metrics.js";
 import { type AtelierPalette, createPalette, type PaletteRole } from "./palette.js";
 import {
@@ -475,6 +476,24 @@ function metricPairRows(
 	return visibleWidth(inline) <= contentWidth ? [inline] : [left, right];
 }
 
+function codexUsageRows(snapshot: SidebarSnapshot, contentWidth: number, palette: AtelierPalette): string[] {
+	const usage = snapshot.codexUsage;
+	if (!usage || usage.status === "hidden") return [];
+	if (usage.status === "loading") return [palette.paint("muted", "Codex plan · checking…")];
+	if (usage.status === "unavailable") return [palette.paint("dim", "Codex limits unavailable")];
+
+	return [
+		palette.paint("muted", "Codex plan"),
+		...usage.windows.flatMap((window) => {
+			const remaining = Math.round(window.remainingPercent);
+			const role: PaletteRole = remaining <= 10 ? "error" : remaining <= 30 ? "warning" : "output";
+			const value = metricValue(formatCodexWindowLabel(window), `${remaining}% left`, palette, role);
+			const reset = window.resetsAt === undefined ? undefined : formatCodexResetTime(window.resetsAt);
+			return reset ? [spacedRow(value, palette.paint("dim", `reset ${reset}`), contentWidth)] : [value];
+		}),
+	];
+}
+
 function usageRows(
 	snapshot: SidebarSnapshot,
 	config: AtelierConfig,
@@ -483,9 +502,9 @@ function usageRows(
 	palette: AtelierPalette,
 ): string[] {
 	const { metrics } = snapshot;
-	if (!metrics.usageAvailable && !metrics.costAvailable) return [];
+	const rows = codexUsageRows(snapshot, contentWidth, palette);
+	if (!metrics.usageAvailable && !metrics.costAvailable) return rows;
 
-	const rows: string[] = [];
 	if (metrics.usageAvailable) {
 		rows.push(
 			...metricPairRows(

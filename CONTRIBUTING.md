@@ -11,7 +11,7 @@ Thanks for helping improve Pi Atelier. It is an interactive Pi TUI extension, so
 
 ## Set up a checkout
 
-Pi Atelier requires Node.js `22.19.0` or newer, Pi `0.80.7` or newer, and an interactive TUI.
+Pi Atelier requires Node.js `22.19.0` or newer, Pi `0.81.0` or newer, and an interactive TUI.
 
 ```bash
 npm install

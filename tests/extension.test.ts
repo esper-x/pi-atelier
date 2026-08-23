@@ -358,6 +358,41 @@ describe("extension registration", () => {
 		expect(h.shortcuts).toContain("ctrl+shift+r");
 	});
 
+	it("loads active Codex subscription limits into the Atelier footer", async () => {
+		const fetchCodexUsage = vi.fn().mockResolvedValue(
+			new Response(
+				JSON.stringify({
+					rate_limit: {
+						secondary_window: { used_percent: 59, limit_window_seconds: 604_800 },
+					},
+				}),
+				{ status: 200 },
+			),
+		);
+		const h = harness("tui", "linux", false, { fetchCodexUsage });
+		(h.ctx as any).model = {
+			id: "gpt-5.6-sol",
+			name: "GPT-5.6 Sol",
+			provider: "openai-codex",
+			baseUrl: "https://chatgpt.com/backend-api",
+		};
+		(h.ctx as any).modelRegistry = {
+			isUsingOAuth: vi.fn().mockReturnValue(true),
+			getApiKeyAndHeaders: vi.fn().mockResolvedValue({
+				ok: true,
+				apiKey: "codex-token",
+				baseUrl: "https://chatgpt.com/backend-api",
+			}),
+		};
+
+		await start(h);
+		await vi.waitFor(() => expect(fetchCodexUsage).toHaveBeenCalledOnce());
+		const footer = renderFooter(h.setFooter.mock.calls[0]?.[0], vi.fn());
+		await vi.waitFor(() => expect(footer.render(200).join("\n")).toContain("codex 41% wk"));
+
+		await h.handlers.get("session_shutdown")?.({ reason: "quit" }, h.ctx);
+	});
+
 	it("routes alt+a to the Control Center", async () => {
 		const h = harness("tui", "linux", true);
 		await start(h);

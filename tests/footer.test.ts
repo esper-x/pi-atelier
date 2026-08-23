@@ -156,6 +156,30 @@ describe("footer performance", () => {
 });
 
 describe("footer", () => {
+	it("renders only returned Codex plan windows in the Status Rail", () => {
+		const line = plainAt(200, DEFAULT_CONFIG, {
+			...state,
+			codexUsage: {
+				status: "ready",
+				windows: [
+					{ position: "primary", remainingPercent: 72, windowMinutes: 300 },
+					{ position: "secondary", remainingPercent: 41, windowMinutes: 10_080 },
+				],
+			},
+		});
+		expect(line).toContain("codex 72% 5h 41% wk");
+
+		const weeklyOnly = plainAt(200, DEFAULT_CONFIG, {
+			...state,
+			codexUsage: {
+				status: "ready",
+				windows: [{ position: "secondary", remainingPercent: 41, windowMinutes: 10_080 }],
+			},
+		});
+		expect(weeklyOnly).toContain("codex 41% wk");
+		expect(weeklyOnly).not.toContain("5h");
+	});
+
 	it("selects exact responsive modes", () => {
 		expect([132, 131, 96, 95, 72, 71, 56, 55].map(selectResponsiveMode)).toEqual([
 			"gallery",

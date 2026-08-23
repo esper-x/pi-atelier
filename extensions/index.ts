@@ -14,6 +14,7 @@ import {
 	createCompletionNotifier,
 	type SpawnNotificationProcess,
 } from "../src/completion-notifier.js";
+import { createCodexUsageTracker, type CodexUsageTracker } from "../src/codex-usage.js";
 import { loadConfig, type saveUserConfig, saveUserConfigPatch } from "../src/config.js";
 import { createFooterComponent, type ThemeLike } from "../src/footer.js";
 import {
@@ -100,6 +101,7 @@ export interface AtelierExtensionDependencies {
 	saveConfigPatch?: typeof saveUserConfigPatch;
 	notificationPlatform?: NodeJS.Platform;
 	spawnNotificationProcess?: SpawnNotificationProcess;
+	fetchCodexUsage?: typeof globalThis.fetch;
 }
 
 interface ActiveSession {
@@ -112,6 +114,7 @@ interface ActiveSession {
 	readonly runActivity: RunActivityTracker;
 	readonly subagents: SubagentActivityTracker;
 	readonly completionNotifier: CompletionNotifier;
+	readonly codexUsage: CodexUsageTracker;
 	readonly retiredState: AtelierState;
 	readonly retiredConfig: AtelierConfig;
 	readonly retiredCwd: string;
@@ -357,6 +360,7 @@ export default function atelierExtension(
 		cleanup(() => session.runActivity.reset());
 		cleanup(() => session.subagents.dispose());
 		cleanup(() => session.completionNotifier.reset());
+		cleanup(() => session.codexUsage.dispose());
 		const unsubscribe = session.unsubscribeAskUserBlocked;
 		session.unsubscribeAskUserBlocked = undefined;
 		if (unsubscribe) cleanup(unsubscribe);
@@ -652,6 +656,7 @@ export default function atelierExtension(
 		let localSidebar: SidebarController | undefined;
 		let localPanelRegistry: SidebarPanelRegistry | undefined;
 		let localCompletionNotifier: CompletionNotifier | undefined;
+		let localCodexUsage: CodexUsageTracker | undefined;
 		let candidateSession: ActiveSession | undefined;
 		let publishedSession: ActiveSession | undefined;
 		const isFresh = (): boolean => initializationToken === lifecycleToken;
@@ -702,6 +707,11 @@ export default function atelierExtension(
 				requestRender: requestCandidateRenders,
 			});
 			localRuntime = candidateRuntime;
+			localCodexUsage = createCodexUsageTracker({
+				ctx: initializationContext,
+				onChange: (state) => candidateRuntime.setCodexUsage(state),
+				...(dependencies.fetchCodexUsage ? { fetch: dependencies.fetchCodexUsage } : {}),
+			});
 			localPanelRegistry = createSidebarPanelRegistry({
 				events: pi.events,
 				instanceId: `atelier-${initializationToken.id}`,
@@ -747,6 +757,7 @@ export default function atelierExtension(
 				localRunActivity.reset();
 				localSubagents.dispose();
 				candidateCompletionNotifier.reset();
+				localCodexUsage.dispose();
 				candidateRuntime.dispose();
 				return;
 			}
@@ -761,6 +772,7 @@ export default function atelierExtension(
 				runActivity: localRunActivity,
 				subagents: localSubagents,
 				completionNotifier: candidateCompletionNotifier,
+				codexUsage: localCodexUsage,
 				retiredState: createInertAtelierState(autoCompact),
 				retiredConfig: structuredClone(loaded.config),
 				retiredCwd: initializationContext.cwd,
@@ -839,6 +851,7 @@ export default function atelierExtension(
 				installFooter(nextSession);
 				if (loaded.config.showSidebarOnStartup) nextSession.sidebar.show();
 			}
+			void localCodexUsage.refresh();
 			void candidateRuntime.flushWorkspacePulseRefresh();
 		} catch (error) {
 			const cleanup = (action: () => void): void => {
@@ -855,12 +868,14 @@ export default function atelierExtension(
 					const sidebar = localSidebar;
 					const panelRegistry = localPanelRegistry;
 					const completionNotifier = localCompletionNotifier;
+					const codexUsage = localCodexUsage;
 					const runtime = localRuntime;
 					if (sidebar) cleanup(() => sidebar.dispose());
 					if (panelRegistry) cleanup(() => panelRegistry.dispose());
 					cleanup(() => localRunActivity.reset());
 					cleanup(() => localSubagents.dispose());
 					if (completionNotifier) cleanup(() => completionNotifier.reset());
+					if (codexUsage) cleanup(() => codexUsage.dispose());
 					if (runtime) cleanup(() => runtime.dispose());
 				}
 				if (!isFresh()) return;
@@ -982,7 +997,12 @@ export default function atelierExtension(
 		current.runtime.refreshUsage();
 		await current.runtime.flushWorkspacePulseRefresh();
 	});
-	pi.on("model_select", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());
+	pi.on("model_select", (_event, ctx) => {
+		const current = getActiveSession(ctx);
+		if (!current) return;
+		current.runtime.refreshUsage();
+		void current.codexUsage.refresh();
+	});
 	pi.on("thinking_level_select", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());
 	pi.on("session_compact", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());
 	pi.on("session_info_changed", (_event, ctx) => getActiveSession(ctx)?.runtime.refreshUsage());

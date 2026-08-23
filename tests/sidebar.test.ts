@@ -1313,6 +1313,37 @@ describe("sidebar snapshot and layout", () => {
 		);
 	});
 
+	it("renders only returned Codex plan windows above session usage", () => {
+		const withLimits = {
+			...snapshot(),
+			codexUsage: {
+				status: "ready" as const,
+				windows: [
+					{ position: "primary" as const, remainingPercent: 72, windowMinutes: 300 },
+					{ position: "secondary" as const, remainingPercent: 9, windowMinutes: 10_080 },
+				],
+			},
+		};
+		const rows = contentRows(renderSidebarLines(withLimits, DEFAULT_CONFIG, theme, 44, 50, false));
+		const usageIndex = rows.indexOf("USAGE");
+		expect(rows.slice(usageIndex + 1, usageIndex + 4)).toEqual([
+			"Codex plan",
+			"5h 72% left",
+			"Weekly 9% left",
+		]);
+
+		const weeklyOnly = {
+			...withLimits,
+			codexUsage: {
+				status: "ready" as const,
+				windows: [{ position: "secondary" as const, remainingPercent: 9, windowMinutes: 10_080 }],
+			},
+		};
+		const weeklyRows = contentRows(renderSidebarLines(weeklyOnly, DEFAULT_CONFIG, theme, 44, 50, false));
+		expect(weeklyRows).toContain("Weekly 9% left");
+		expect(weeklyRows).not.toContain("5h 72% left");
+	});
+
 	it("renders populated usage as compact inline metric rows", () => {
 		const fg = vi.fn((_color: string, text: string) => text);
 		const unnamedTheme = { fg, bold: theme.bold, italic: theme.italic };
