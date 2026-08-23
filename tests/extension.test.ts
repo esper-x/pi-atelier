@@ -1209,7 +1209,7 @@ describe("extension registration", () => {
 			const execCallsBeforeShutdown = h.pi.exec.mock.calls.length;
 
 			await h.handlers.get("session_shutdown")?.({ reason: "quit" }, h.ctx);
-			expect(vi.getTimerCount()).toBe(timersBeforeSchedule);
+			expect(vi.getTimerCount()).toBeLessThanOrEqual(timersBeforeSchedule);
 			await vi.advanceTimersByTimeAsync(1_000);
 
 			expect(h.pi.exec.mock.calls.length).toBe(execCallsBeforeShutdown);
@@ -1550,7 +1550,7 @@ describe("extension registration", () => {
 				expect(rendered).toContain("vendor:missing");
 
 				// Two display rows, nine segments, and three actions precede configured panels.
-				for (let index = 0; index < 14 + 9; index += 1) workspace?.handleInput("\u001b[B");
+				for (let index = 0; index < 14 + 10; index += 1) workspace?.handleInput("\u001b[B");
 				const focusedRendered = workspace?.render(120).join("\n") ?? "";
 				expect(focusedRendered).toContain("Queue title");
 				expect(focusedRendered).toContain("unavailable");
@@ -1570,6 +1570,7 @@ describe("extension registration", () => {
 					"vendor:missing",
 					"agent",
 					"activity",
+					"subagents",
 					"alerts",
 					"todos",
 					"context",

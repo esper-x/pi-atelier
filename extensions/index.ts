@@ -24,6 +24,7 @@ import {
 } from "../src/menu.js";
 import { createRunActivityTracker, type RunActivityTracker } from "../src/run-activity.js";
 import type { SidebarPanelSetting } from "../src/settings-workspace.js";
+import { createSubagentActivityTracker, type SubagentActivityTracker } from "../src/subagents.js";
 import {
 	buildSidebarSnapshot,
 	createSidebarController,
@@ -109,6 +110,7 @@ interface ActiveSession {
 	readonly sidebar: SidebarController;
 	readonly panelRegistry: SidebarPanelRegistry;
 	readonly runActivity: RunActivityTracker;
+	readonly subagents: SubagentActivityTracker;
 	readonly completionNotifier: CompletionNotifier;
 	readonly retiredState: AtelierState;
 	readonly retiredConfig: AtelierConfig;
@@ -286,6 +288,7 @@ export default function atelierExtension(
 			activeToolNames: activeTools,
 			extensionStatuses: targetSession.extensionStatuses,
 			runActivity: runActivity.getSnapshot(),
+			subagents: targetSession.subagents.getSnapshot(),
 			todos: targetSession.todos,
 			sidebarPanels: panelRegistry.getAvailable(),
 		});
@@ -352,6 +355,7 @@ export default function atelierExtension(
 		cleanup(() => session.panelRegistry.dispose());
 		cleanup(() => session.runtime.dispose());
 		cleanup(() => session.runActivity.reset());
+		cleanup(() => session.subagents.dispose());
 		cleanup(() => session.completionNotifier.reset());
 		const unsubscribe = session.unsubscribeAskUserBlocked;
 		session.unsubscribeAskUserBlocked = undefined;
@@ -659,6 +663,10 @@ export default function atelierExtension(
 			cwd: initializationContext.cwd,
 			onChange: requestCandidateRenders,
 		});
+		const localSubagents = createSubagentActivityTracker({
+			events: pi.events,
+			onChange: requestCandidateRenders,
+		});
 		try {
 			const userPath = join(getAgentDir(), "pi-atelier.json");
 			const projectPath = join(initializationContext.cwd, CONFIG_DIR_NAME, "pi-atelier.json");
@@ -667,7 +675,11 @@ export default function atelierExtension(
 				projectPath,
 				projectTrusted: initializationContext.isProjectTrusted(),
 			});
-			if (!isFresh()) return;
+			if (!isFresh()) {
+				localRunActivity.reset();
+				localSubagents.dispose();
+				return;
+			}
 			for (const warning of loaded.warnings) initializationContext.ui.notify(warning, "warning");
 			let autoCompact: boolean | null = null;
 			try {
@@ -719,7 +731,9 @@ export default function atelierExtension(
 				getConfig: () =>
 					activeSession?.token === initializationToken ? candidateRuntime.getConfig() : loaded.config,
 				colorEnabled: !("NO_COLOR" in process.env),
-				shouldAnimate: () => activeSession?.token === initializationToken && localRunActivity.isRunning(),
+				shouldAnimate: () =>
+					activeSession?.token === initializationToken &&
+					(localRunActivity.isRunning() || localSubagents.isActive()),
 				onWarning: (message) => initializationContext.ui.notify(message, "warning"),
 				onError: (error) =>
 					initializationContext.ui.notify(
@@ -731,6 +745,7 @@ export default function atelierExtension(
 				localSidebar.dispose();
 				localPanelRegistry?.dispose();
 				localRunActivity.reset();
+				localSubagents.dispose();
 				candidateCompletionNotifier.reset();
 				candidateRuntime.dispose();
 				return;
@@ -744,6 +759,7 @@ export default function atelierExtension(
 				sidebar: localSidebar,
 				panelRegistry: localPanelRegistry,
 				runActivity: localRunActivity,
+				subagents: localSubagents,
 				completionNotifier: candidateCompletionNotifier,
 				retiredState: createInertAtelierState(autoCompact),
 				retiredConfig: structuredClone(loaded.config),
@@ -843,6 +859,7 @@ export default function atelierExtension(
 					if (sidebar) cleanup(() => sidebar.dispose());
 					if (panelRegistry) cleanup(() => panelRegistry.dispose());
 					cleanup(() => localRunActivity.reset());
+					cleanup(() => localSubagents.dispose());
 					if (completionNotifier) cleanup(() => completionNotifier.reset());
 					if (runtime) cleanup(() => runtime.dispose());
 				}
@@ -899,12 +916,19 @@ export default function atelierExtension(
 		getActiveSession(ctx)?.runActivity.finishResponse(event.message.usage.output);
 	});
 	pi.on("tool_execution_start", (event, ctx) => {
-		getActiveSession(ctx)?.runActivity.startTool(event);
+		const current = getActiveSession(ctx);
+		if (!current) return;
+		current.runActivity.startTool(event);
+		if (event.toolName === "subagent") current.subagents.refresh();
+	});
+	pi.on("tool_execution_update", (event, ctx) => {
+		if (event.toolName === "subagent") getActiveSession(ctx)?.subagents.refresh();
 	});
 	pi.on("tool_execution_end", (event, ctx) => {
 		const current = getActiveSession(ctx);
 		if (!current) return;
 		current.runActivity.finishTool(event);
+		if (event.toolName === "subagent") current.subagents.refresh();
 		current.runtime.scheduleWorkspacePulseRefresh();
 	});
 	// Collapse todo tool output when sidebar shows todos

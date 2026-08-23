@@ -977,6 +977,58 @@ describe("sidebar snapshot and layout", () => {
 		);
 	});
 
+	it("renders active custom subagents with capacity, model, effort, elapsed time, and tokens", () => {
+		const subagentOnly = {
+			...DEFAULT_CONFIG,
+			sidebarPanelLayout: DEFAULT_CONFIG.sidebarPanelLayout.map((entry) => ({
+				...entry,
+				visible: entry.id === "subagents",
+			})),
+		};
+		const rows = contentRows(
+			renderSidebarLines(
+				{
+					...snapshot(),
+					subagents: {
+						available: true,
+						totalActive: 2,
+						omitted: 1,
+						capacity: { used: 1, limit: 8 },
+						entries: [
+							{
+								key: "fleet-1",
+								agent: "custom-reviewer",
+								role: "correctness",
+								model: "openai-codex/gpt-5.6-sol",
+								effort: "high",
+								startedAt: 1_000,
+								tokens: 1_200,
+								goal: "Review the current diff",
+							},
+						],
+					},
+				},
+				subagentOnly,
+				theme,
+				44,
+				20,
+				false,
+				60_000,
+			),
+		);
+		expect(rows).toContain("SUBAGENTS");
+		expect(rows).toContainEqual(expect.stringMatching(/^2 active\s+async 1\/8$/));
+		expect(rows).toContainEqual(expect.stringMatching(/^◆ custom-reviewer · correctness\s+59s$/));
+		expect(rows).toContain("gpt-5.6-sol · HIGH · 1.2k tok");
+		expect(rows).toContain("Review the current diff");
+		expect(rows).toContain("+1 more");
+	});
+
+	it("omits the Subagents panel when pi-subagents is unavailable or idle", () => {
+		const rows = contentRows(renderSidebarLines(snapshot(), DEFAULT_CONFIG, theme, 44, 60, false, 0));
+		expect(rows).not.toContain("SUBAGENTS");
+	});
+
 	it("renders a scan-first Workspace Pulse without repeating the repository root path", () => {
 		const rows = contentRows(renderSidebarLines(snapshot(), DEFAULT_CONFIG, theme, 44, 36, false, 0));
 

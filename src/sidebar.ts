@@ -13,6 +13,11 @@ import {
 	type ToolActivity,
 } from "./run-activity.js";
 import {
+	EMPTY_SUBAGENT_ACTIVITY,
+	type SubagentActivityEntry,
+	type SubagentActivitySnapshot,
+} from "./subagents.js";
+import {
 	BUILTIN_SIDEBAR_PANEL_IDS,
 	isSidebarPanelContributionId,
 	SIDEBAR_PANEL_MAX_ROW_CHARS,
@@ -80,6 +85,7 @@ export interface SidebarSnapshotInput {
 	activeToolNames?: readonly string[];
 	extensionStatuses: readonly string[];
 	runActivity?: RunActivitySnapshot;
+	subagents?: SubagentActivitySnapshot;
 	todos?: readonly NormalizedTodo[];
 	sidebarPanels?: readonly SidebarPanelData[];
 }
@@ -95,6 +101,7 @@ export interface SidebarSnapshot extends AtelierState {
 	availableToolCount: number;
 	activeToolNames: readonly string[];
 	runActivity: RunActivitySnapshot;
+	subagents: SubagentActivitySnapshot;
 	todos: readonly NormalizedTodo[];
 	sidebarPanels?: readonly SidebarPanelData[];
 }
@@ -121,6 +128,7 @@ export function buildSidebarSnapshot(input: SidebarSnapshotInput): SidebarSnapsh
 		),
 		extensionStatuses: input.extensionStatuses,
 		runActivity: input.runActivity ?? EMPTY_RUN_ACTIVITY,
+		subagents: input.subagents ?? EMPTY_SUBAGENT_ACTIVITY,
 		todos: input.todos ?? [],
 		sidebarPanels: input.sidebarPanels ?? [],
 	};
@@ -560,6 +568,85 @@ function activeToolNameRows(
 	return rows;
 }
 
+function subagentEntryRows(
+	entry: SubagentActivityEntry,
+	contentWidth: number,
+	palette: AtelierPalette,
+	now: number,
+): string[] {
+	const label = entry.role && entry.role !== entry.agent ? `${entry.agent} · ${entry.role}` : entry.agent;
+	const elapsed = formatDuration(Math.max(0, now - entry.startedAt));
+	const rows = [
+		spacedRow(
+			`${palette.paint("working", "◆")} ${palette.paint("primary", label)}`,
+			palette.paint("muted", elapsed),
+			contentWidth,
+		),
+	];
+	const model = entry.model?.split("/").filter(Boolean).at(-1);
+	const metadata = [
+		model,
+		entry.effort ? entry.effort.toUpperCase() : undefined,
+		entry.tokens > 0 ? `${formatUsageTokens(entry.tokens)} tok` : undefined,
+	].filter((value): value is string => Boolean(value));
+	if (metadata.length > 0) rows.push(palette.paint("muted", metadata.join(" · ")));
+	if (entry.goal) rows.push(palette.paint("dim", entry.goal));
+	return rows;
+}
+
+function subagentSidebarGroups(
+	snapshot: SidebarSnapshot,
+	contentWidth: number,
+	palette: AtelierPalette,
+	now: number,
+): SidebarGroup[] {
+	const activity = snapshot.subagents;
+	if (!activity.available || (activity.totalActive === 0 && activity.capacity.used === 0)) return [];
+	const countLabel = `${finiteCount(activity.totalActive)} active`;
+	const capacityLabel =
+		activity.capacity.limit > 0
+			? `async ${finiteCount(activity.capacity.used)}/${finiteCount(activity.capacity.limit)}`
+			: activity.capacity.used > 0
+				? `async ${finiteCount(activity.capacity.used)}`
+				: "";
+	const summary = capacityLabel
+		? spacedRow(palette.paint("working", countLabel), palette.paint("muted", capacityLabel), contentWidth)
+		: palette.paint("working", countLabel);
+	return [
+		{
+			name: "subagentsCore",
+			panel: "SUBAGENTS",
+			panelRole: "working",
+			panelJewel: Math.floor(now / 400) % 2 === 1 ? "✧" : "✦",
+			rows: [summary],
+			required: false,
+			dropRank: 70,
+		},
+		...activity.entries.map((entry, index, rows) => ({
+			name: `subagent:${entry.key}`,
+			panel: "SUBAGENTS",
+			panelRole: "working" as const,
+			panelJewel: (Math.floor(now / 400) % 2 === 1 ? "✧" : "✦") as "✦" | "✧",
+			rows: subagentEntryRows(entry, contentWidth, palette, now),
+			required: false,
+			dropRank: 40 + (rows.length - index) / 100,
+		})),
+		...(activity.omitted > 0
+			? [
+					{
+						name: "subagentsOmitted",
+						panel: "SUBAGENTS",
+						panelRole: "working" as const,
+						panelJewel: "✦" as const,
+						rows: [palette.paint("dim", `+${finiteCount(activity.omitted)} more`)],
+						required: false,
+						dropRank: 35,
+					},
+				]
+			: []),
+	];
+}
+
 function todosRows(snapshot: SidebarSnapshot, palette: AtelierPalette): string[] {
 	const todoList = snapshot.todos;
 	if (todoList.length === 0) return [];
@@ -671,6 +758,7 @@ function panelIdForTitle(title: string): string | undefined {
 	return {
 		AGENT: "agent",
 		ACTIVITY: "activity",
+		SUBAGENTS: "subagents",
 		ALERTS: "alerts",
 		TODOS: "todos",
 		CONTEXT: "context",
@@ -905,6 +993,7 @@ export function renderSidebarLines(
 			required: group.name === "activityCore",
 			dropRank: group.name === "activityCore" ? Number.POSITIVE_INFINITY : group.dropRank + 40,
 		})),
+		...subagentSidebarGroups(snapshot, panelContentWidth, palette, now),
 		{
 			name: "statusDetails",
 			panel: "ALERTS",

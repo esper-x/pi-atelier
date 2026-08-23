@@ -41,6 +41,7 @@ export const SIDEBAR_PANEL_MAX_TRACKED_SOURCES = SIDEBAR_PANEL_MAX_PANELS;
 export const BUILTIN_SIDEBAR_PANEL_IDS = [
 	"agent",
 	"activity",
+	"subagents",
 	"alerts",
 	"todos",
 	"context",

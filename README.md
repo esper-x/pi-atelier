@@ -9,7 +9,7 @@ A responsive status rail and activity sidebar for [Pi](https://pi.dev).
 ## Features
 
 - Responsive one-line status rail
-- Live agent, tool, context, workspace, usage, and TODO information
+- Live agent, tool, context, workspace, usage, TODO, and `pi-subagents` fleet information
 - Model, thinking-level, and tool controls
 - Configurable display presets, segments, and sidebar panels
 - Session details, rename, and compaction actions
@@ -61,6 +61,8 @@ Commands:
 The sidebar starts visible and hides when the terminal is too narrow. Press `Ctrl+Shift+R` to resize it.
 
 The TODO panel supports Pi `todo` results and the optional `@juicesharp/rpiv-todo` extension.
+
+When [`pi-subagents`](https://github.com/nicobailon/pi-subagents) is installed, an active **SUBAGENTS** panel appears automatically. It uses the package's versioned in-process RPC and works with built-in and custom agent profiles without additional configuration.
 
 Status rail presets:
 

@@ -78,6 +78,7 @@ describe("npm package contract", () => {
 		expect(layout).toHaveLength(2);
 		expect(invalidContribution.id).toBe("agent");
 		expect(BUILTIN_SIDEBAR_PANEL_IDS).toContain("agent");
+		expect(BUILTIN_SIDEBAR_PANEL_IDS).toContain("subagents");
 		expect(isSidebarPanelContributionId(contributedId)).toBe(true);
 		expect(isSidebarPanelContributionId("agent")).toBe(false);
 		expect(isSidebarPanelId("agent")).toBe(true);
